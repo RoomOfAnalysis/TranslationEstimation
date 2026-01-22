@@ -19,100 +19,35 @@
 
 namespace translation_estimation
 {
-    void Rearrange(cv::Mat& out)
-    {
-        int isXodd = out.cols % 2 == 1;
-        int isYodd = out.rows % 2 == 1;
-        int xMid = out.cols >> 1;
-        int yMid = out.rows >> 1;
-        cv::Mat q0(out, cv::Rect(0, 0, xMid + isXodd, yMid + isYodd));
-        cv::Mat q1(out, cv::Rect(xMid + isXodd, 0, xMid, yMid + isYodd));
-        cv::Mat q2(out, cv::Rect(0, yMid + isYodd, xMid + isXodd, yMid));
-        cv::Mat q3(out, cv::Rect(xMid + isXodd, yMid + isYodd, xMid, yMid));
-        //std::println("q0: {}\nq1: {}\nq2: {}\nq3: {}", q0, q1, q2, q3);
-
-        if (!(isXodd || isYodd))
-        {
-            cv::Mat tmp;
-            q0.copyTo(tmp);
-            q3.copyTo(q0);
-            tmp.copyTo(q3);
-
-            q1.copyTo(tmp);
-            q2.copyTo(q1);
-            tmp.copyTo(q2);
-        }
-        else
-        {
-            cv::Mat tmp0, tmp1, tmp2, tmp3;
-            q0.copyTo(tmp0);
-            q1.copyTo(tmp1);
-            q2.copyTo(tmp2);
-            q3.copyTo(tmp3);
-
-            tmp0.copyTo(out(cv::Rect(xMid, yMid, xMid + isXodd, yMid + isYodd)));
-            tmp3.copyTo(out(cv::Rect(0, 0, xMid, yMid)));
-
-            tmp1.copyTo(out(cv::Rect(0, yMid, xMid, yMid + isYodd)));
-            tmp2.copyTo(out(cv::Rect(xMid, 0, xMid + isXodd, yMid)));
-
-            // to keep aligned with `image_registration.correlate2d`
-            if (isYodd)
-            {
-                cv::Mat col0;
-                out.col(0).copyTo(col0);
-                out.colRange(1, out.cols).copyTo(out.colRange(0, out.cols - 1));
-                col0.copyTo(out.col(out.cols - 1));
-            }
-            if (isXodd)
-            {
-                cv::Mat row0;
-                out.row(0).copyTo(row0);
-                out.rowRange(1, out.rows).copyTo(out.rowRange(0, out.rows - 1));
-                row0.copyTo(out.row(out.rows - 1));
-            }
-        }
-    }
-
-    cv::Mat XCorrelation(cv::Mat const& I, cv::Mat const& I1)
-    {
-        cv::Mat fft1;
-        cv::Mat fft2;
-
-        cv::dft(I, fft1);
-        cv::dft(I1, fft2);
-
-        cv::mulSpectrums(fft1, fft2, fft1, 0, true);
-        cv::idft(fft1, fft1, cv::DFT_SCALE | cv::DFT_REAL_OUTPUT);
-        Rearrange(fft1);
-        return fft1;
-    }
-
-    // Helper function for 2D correlation using FFT
+    // Pure xtensor 2D cross-correlation using FFT
     template <typename T> xt::xarray<T> correlate2d(const xt::xarray<T>& img1, const xt::xarray<T>& img2)
     {
-        // Determine output size (full correlation)
-        auto shape1 = img1.shape();
-        auto shape2 = img2.shape();
+        auto shape = img1.shape();
 
-        auto img1_c = img1;
-        auto img2_c = img2;
+        // Convert to complex and compute FFTs
+        xt::xarray<std::complex<T>> img1_complex = xt::cast<std::complex<T>>(img1);
+        xt::xarray<std::complex<T>> img2_complex = xt::cast<std::complex<T>>(img2);
 
-        // Perform correlation
-        cv::Mat mat1(shape1[0], shape1[1], std::is_same_v<T, double> ? CV_64F : CV_32F, const_cast<T*>(img1_c.data()));
-        cv::Mat mat2(shape2[0], shape2[1], std::is_same_v<T, double> ? CV_64F : CV_32F, const_cast<T*>(img2_c.data()));
+        auto fft1 = xt::fftw::fft2(img1_complex);
+        auto fft2 = xt::fftw::fft2(img2_complex);
 
-        // FIXME: slightly precision diff compared with `image_registration.correlate2d`
-        auto corr_mat = XCorrelation(mat1, mat2);
+        // Cross-correlation in frequency domain: FFT1 * conj(FFT2)
+        xt::xarray<std::complex<T>> fft_corr = fft1 * xt::conj(fft2);
 
-        // Create a copy to ensure memory safety
-        xt::xarray<T> result = xt::eval(xt::view(
-            xt::adapt(corr_mat.ptr<T>(), corr_mat.total(), xt::no_ownership(),
-                      std::vector<size_t>{static_cast<size_t>(corr_mat.rows), static_cast<size_t>(corr_mat.cols)}),
-            xt::all(), xt::all()));
-        //std::println("result: \n{}", result);
+        // Inverse FFT
+        xt::xarray<std::complex<T>> corr_complex = xt::fftw::ifft2(fft_corr);
+        xt::xarray<T> corr = xt::real(corr_complex);
 
-        return result;
+        // Fftshift to center the zero-lag correlation
+        xt::xarray<T> shifted_corr = xt::roll(xt::roll(corr, shape[0] / 2, 0), shape[1] / 2, 1);
+
+        int isYodd = shape[0] % 2 == 1;
+        int isXodd = shape[1] % 2 == 1;
+        // to keep aligned with `image_registration.correlate2d`
+        if (isYodd) return xt::roll(shifted_corr, -1, 1);
+        if (isXodd) return xt::roll(shifted_corr, -1, 0);
+
+        return shifted_corr;
     }
 
     // Main chi2n_map function
