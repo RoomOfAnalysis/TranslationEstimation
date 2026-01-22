@@ -56,5 +56,8 @@ int main(int argc, char* argv[])
     std::println("errs: {}", errs);
     std::println("chi2ups: {}", chi2ups);
 
+    auto corrected_image = shift2d(image2, -h_shift, -v_shift);
+    std::println("Corrected image: {}", corrected_image);
+
     return 0;
 }

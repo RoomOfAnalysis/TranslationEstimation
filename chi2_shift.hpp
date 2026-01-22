@@ -280,4 +280,26 @@ namespace translation_estimation
             return std::make_tuple(std::make_pair(-xshift_corr, -yshift_corr), std::make_pair(T{}, T{}),
                                    xt::xarray<T>{});
     }
+
+    template <typename T> xt::xarray<T> shift2d(xt::xarray<T> const& img, T deltax, T deltay, T phase = 0)
+    {
+        // Compute FFT of the image
+        xt::xarray<std::complex<T>> img_complex = xt::cast<std::complex<T>>(xt::nan_to_num(img));
+        auto img_fft = xt::fftw::fft2(img_complex);
+        // Create frequency grids
+        auto shape = img.shape();
+        auto freqY = xt::fftw::fftfreq<T>(shape[0]);
+        auto freqX = xt::fftw::fftfreq<T>(shape[1]);
+        xt::xarray<T> fy = xt::expand_dims(freqY, 1); // shape: (height, 1)
+        xt::xarray<T> fx = xt::expand_dims(freqX, 0); // shape: (1, width)
+        // Compute the phase shift kernel
+        xt::xarray<std::complex<T>> phase_shift =
+            xt::exp(std::complex<T>(0, -2 * M_PI) * (fx * deltax + fy * deltay) + std::complex<T>(0, -phase));
+        // Apply the phase shift in frequency domain
+        xt::xarray<std::complex<T>> shifted_fft = img_fft * phase_shift;
+        // Inverse FFT to get the shifted image
+        xt::xarray<std::complex<T>> shifted_img_complex = xt::fftw::ifft2(shifted_fft);
+        // Return the real component
+        return xt::real(shifted_img_complex);
+    }
 } // namespace translation_estimation
