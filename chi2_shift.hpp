@@ -70,22 +70,17 @@ namespace translation_estimation
         }
         work_im1 = xt::nan_to_num(work_im1);
         work_im2 = xt::nan_to_num(work_im2);
-        //std::println("work_im1: {}", work_im1);
-        //std::println("work_im2: {}", work_im2);
 
         // Error is a scalar: simply sum im1^2 / err^2
         auto err_val = 1.0;
         auto err_sq_scalar = err_val * err_val;
         auto term3 = xt::sum(work_im1 * work_im1 / err_sq_scalar)();
-        //std::println("term3: {}", term3);
 
         // Calculate term1: sum of (im2^2 / err^2)
         auto term1 = xt::sum(work_im2 * work_im2 / err_sq_scalar)();
-        //std::println("term1: {}", term1);
 
         // Calculate term2: -2 * correlation of (im1) with (im2/err^2)
         xt::xarray<T> term2 = -2 * correlate2d<T>(work_im1, work_im2 / err_sq_scalar);
-        //std::println("term2: {}", term2);
 
         // Calculate chi2: term1 + term2 + term3
         xt::xarray<T> chi2 = term1 + term2 + term3;
@@ -135,25 +130,19 @@ namespace translation_estimation
                 xx(i, j) = (static_cast<T>(j) - width_center) * zoom_inv;
             }
         }
-        //std::println("yy: {}", yy);
-        //std::println("xx: {}", xx);
 
         // Center coordinates at minimum position
         auto min_idx = xt::argmin(chi2_map)();
         auto xcen = xx.flat(min_idx);
         auto ycen = yy.flat(min_idx);
-        std::println("xcen: {}, ycen: {}", xcen, ycen);
 
         // Compute delta-chi² and find region within nsigma
         auto chi2_min = chi2_map(min_idx);
         // FIXME: chi2_min is slightly different from image_registration version due to precision diff in correlate2d
-        std::println("min_idx: {}, chi2_min: {}", min_idx, chi2_min);
         xt::xarray<T> deltachi2 = chi2_map - chi2_min;
-        //std::println("deltachi2: {}", deltachi2);
         auto sigma1_area = deltachi2 < static_cast<T>(sigma_to_chi2(nsigma));
         auto x_sigma1 = xt::filter(xx, sigma1_area);
         auto y_sigma1 = xt::filter(yy, sigma1_area);
-        std::println("x_sigma1: {}, y_sigma1: {}", x_sigma1, y_sigma1);
 
         // Compute error bounds
         T errx_low = xcen - xt::amin(x_sigma1)();
@@ -182,15 +171,13 @@ namespace translation_estimation
         auto freqY = xt::fftw::fftfreq<T>(data.shape()[0]);
         auto freqX = xt::fftw::fftfreq<T>(data.shape()[1]);
 
-        auto y_slice = xt::view(outind_y, xt::all(), 0); // shape: (height,) - take first column
-        // freqY[np.newaxis,:] * outinds[0,:,0][:,np.newaxis]
+        auto y_slice = xt::view(outind_y, xt::all(), 0);              // shape: (height,) - take first column
         xt::xarray<T> expanded_freqY = xt::expand_dims(freqY, 0);     // shape: (1, height)
         xt::xarray<T> expanded_y_slice = xt::expand_dims(y_slice, 1); // shape: (height, 1)
         auto indsY = expanded_freqY * expanded_y_slice;               // shape: (height, height)
         xt::xarray<std::complex<T>> kerny = xt::exp(std::complex<T>(0, -2 * M_PI) * indsY);
 
-        auto x_slice = xt::row(outind_x, 0); // shape: (width,) - take first row
-        // freqX[:,np.newaxis] * outinds[1,0,:][np.newaxis,:]
+        auto x_slice = xt::row(outind_x, 0);                          // shape: (width,) - take first row
         xt::xarray<T> expanded_freqX = xt::expand_dims(freqX, 1);     // shape: (width, 1)
         xt::xarray<T> expanded_x_slice = xt::expand_dims(x_slice, 0); // shape: (1, width)
         auto indsX = expanded_freqX * expanded_x_slice;               // shape: (width, width)
@@ -208,23 +195,18 @@ namespace translation_estimation
     {
         auto outshape = inp.shape();
         xt::xarray<double> outarr = xt::zeros<double>(std::vector<std::size_t>{2, outshape[0], outshape[1]});
-        //std::println("outarr shape: {}", outarr.shape());
         xt::xarray<double> r_coords =
             xt::linspace<double>(coordinates[0] - (outshape[0] - 1.) / usfac / 2.0,
                                  coordinates[0] + (outshape[0] - 1.) / usfac / 2.0, outshape[0]);
-        //std::println("r_coords: {}", r_coords);
         xt::xarray<double> c_coords =
             xt::linspace<double>(coordinates[1] - (outshape[1] - 1.) / usfac / 2.0,
                                  coordinates[1] + (outshape[1] - 1.) / usfac / 2.0, outshape[1]);
-        //std::println("c_coords: {}", c_coords);
         xt::view(outarr, 0, xt::all(), xt::all()) =
             xt::broadcast(xt::view(r_coords, xt::all(), xt::newaxis()), {outshape[0], outshape[1]});
         xt::view(outarr, 1, xt::all(), xt::all()) =
             xt::broadcast(xt::view(c_coords, xt::newaxis(), xt::all()), {outshape[0], outshape[1]});
-        //std::println("outarr: {}", outarr);
 
         auto fid2 = fourier_interp2d(inp, outarr);
-        //std::println("fid2: {}", fid2);
         return std::make_pair(outarr, fid2);
     }
 
@@ -234,7 +216,6 @@ namespace translation_estimation
         auto shape = inp.shape();
         T two = 2.0;
         std::array<T, 2> middlepix{(shape[0] - 1) / two + offsets[0], (shape[1] - 1) / two + offsets[1]};
-        //std::println("middlepix: {}", middlepix);
         return zoom_on_pixel(inp, middlepix, usfac);
     }
 
@@ -249,47 +230,40 @@ namespace translation_estimation
 
         // Find minimum chi2 position
         auto min_pos = xt::unravel_index(xt::argmin(chi2_map)(), chi2_map.shape());
-        //std::println("min_pos: {}", min_pos);
 
         auto ymax = min_pos[0];
         auto xmax = min_pos[1];
         auto ylen = img1.shape()[0];
         auto xlen = img1.shape()[1];
-        //std::println("ylen/xlen = {},{}", ylen, xlen);
 
         // This is the center pixel - it's an integer pixel ID (not the center coordinate)
         auto ycen = ylen / 2. - (ylen % 2 == 0 ? 1. : 0.5);
         auto xcen = xlen / 2. - (xlen % 2 == 0 ? 1. : 0.5);
-        //std::println("ycen/xcen = {},{}", ycen, xcen);
 
         // Original shift calculation
         std::array<double, 2> shift{ymax - ycen, xmax - xcen}; // shift img2 by these numbers to get img1
-        std::println("Coarse xmax/ymax = {},{}, for offset {},{}", xmax, ymax, shift[1], shift[0]);
+        if (verbose) std::println("Coarse xmax/ymax = {},{}, for offset {},{}", xmax, ymax, shift[1], shift[0]);
 
         // Sub-pixel zoom-in
         auto [shifts_correction, chi2_ups] = zoom(chi2_map, shift, upsample_factor);
-        //std::println("shifts_correction: {}", shifts_correction);
-        //std::println("chi2_ups: {}", chi2_ups);
 
         // deltachi2 is not reduced deltachi2
         auto chi2_up_min = xt::amin(chi2_ups)();
         auto deltachi2_ups = (chi2_ups - chi2_up_min);
         if (verbose)
-            std::print("Minimum chi2_ups: {}   Max delta-chi2 (highres): {}  Min delta-chi2 (highres): {}", chi2_up_min,
-                       xt::amax(deltachi2_ups)(), xt::amin(xt::filter(deltachi2_ups, deltachi2_ups > 0))());
+            std::println("Minimum chi2_ups: {}   Max delta-chi2 (highres): {}  Min delta-chi2 (highres): {}",
+                         chi2_up_min, xt::amax(deltachi2_ups)(),
+                         xt::amin(xt::filter(deltachi2_ups, deltachi2_ups > 0))());
 
         auto yshifts_corrections = xt::view(shifts_correction, 0, xt::all(), xt::all());
         auto xshifts_corrections = xt::view(shifts_correction, 1, xt::all(), xt::all());
         auto chi2_ups_min_idx = xt::argmin(chi2_ups)();
         T yshift_corr = yshifts_corrections.flat(chi2_ups_min_idx) - ycen;
         T xshift_corr = xshifts_corrections.flat(chi2_ups_min_idx) - xcen;
-        //std::println("Shift correction: {},{}", xshift_corr, yshift_corr);
 
         if (return_error && return_chi2array)
         {
             auto [errx_low, errx_high, erry_low, erry_high] = chi2map_to_errors(chi2_ups, upsample_factor);
-            //std::println("Error x: [{}, {}]", errx_low, errx_high);
-            //std::println("Error y: [{}, {}]", erry_low, erry_high);
             return std::make_tuple(std::make_pair(-xshift_corr, -yshift_corr),
                                    std::make_pair((errx_low + errx_high) / 2., (erry_low + erry_high) / 2.), chi2_ups);
         }

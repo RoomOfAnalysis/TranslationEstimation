@@ -50,26 +50,6 @@ int main(int argc, char* argv[])
     //stream << std::fixed << std::setprecision(16);
     //xt::dump_csv(stream, chi2);
 
-    //auto [errx_low, errx_high, erry_low, erry_high] = chi2map_to_errors(chi2);
-    //std::println("Error x: [{}, {}]", errx_low, errx_high);
-    //std::println("Error y: [{}, {}]", erry_low, erry_high);
-
-    //auto min_pos = xt::unravel_index(xt::argmin(chi2)(), chi2.shape());
-    //auto ymax = min_pos[0];
-    //auto xmax = min_pos[1];
-    //auto ylen = image1.shape()[0];
-    //auto xlen = image1.shape()[1];
-    //std::println("ylen/xlen = {},{}", ylen, xlen);
-    //auto ycen = ylen / 2. - (ylen % 2 == 0 ? 1. : 0.5);
-    //auto xcen = xlen / 2. - (xlen % 2 == 0 ? 1. : 0.5);
-    //std::println("ycen/xcen = {},{}", ycen, xcen);
-    //std::array<double, 2> shift{ymax - ycen, xmax - xcen};
-    //std::println("Coarse xmax/ymax = {},{}, for offset {},{}", xmax, ymax, shift[1], shift[0]);
-
-    //auto [shifts_correction, chi2_ups] = zoom(chi2, shift, 2.);
-    //std::println("shifts_correction: {}", shifts_correction);
-    //std::println("chi2_ups: {}", chi2_ups);
-
     auto [hv_shifts, errs, chi2ups] = chi2_shift(image1, image2, 2.0, true, true, true, true);
     auto [h_shift, v_shift] = hv_shifts;
     std::println("h_shift: {}, v_shift: {}", h_shift, v_shift);
