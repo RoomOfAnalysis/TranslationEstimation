@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(chi2shift LANGUAGES CXX)
+project(translation_estimation LANGUAGES CXX)
 
 if(POLICY CMP0167)
    cmake_policy(SET CMP0167 OLD)
@@ -49,3 +49,4 @@ function(addTest name)
 endfunction()
 
 addTest(chi2_shift_test)
+addTest(phase_cross_correlation_test)
