@@ -38,16 +38,9 @@ namespace translation_estimation
         xt::xarray<std::complex<T>> corr_complex = xt::fftw::ifft2(fft_corr);
         xt::xarray<T> corr = xt::real(corr_complex);
 
-        // Fftshift to center the zero-lag correlation
-        xt::xarray<T> shifted_corr = xt::roll(xt::roll(corr, shape[0] / 2, 0), shape[1] / 2, 1);
-
-        int isYodd = shape[0] % 2 == 1;
-        int isXodd = shape[1] % 2 == 1;
         // to keep aligned with `image_registration.correlate2d`
-        if (isYodd) return xt::roll(shifted_corr, -1, 1);
-        if (isXodd) return xt::roll(shifted_corr, -1, 0);
-
-        return shifted_corr;
+        // no-shfit peak at N/2-1 for even N, (N-1)/2 for odd N
+        return xt::roll(xt::roll(corr, (shape[0] - 1) / 2, 0), (shape[1] - 1) / 2, 1);
     }
 
     // Main chi2n_map function
