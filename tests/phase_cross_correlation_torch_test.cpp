@@ -1,5 +1,5 @@
-#include "phase_cross_correlation.hpp"
-#include "utils.hpp"
+#include "phase_cross_correlation_torch.hpp"
+#include "utils_torch.hpp"
 #include <argparse/argparse.hpp>
 #include <chrono>
 
@@ -22,8 +22,8 @@ int main(int argc, char* argv[])
         std::exit(1);
     }
 
-    auto image1 = load_image_to_xtensor<double>(program.get<std::string>("--image1"));
-    auto image2 = load_image_to_xtensor<double>(program.get<std::string>("--image2"));
+    auto image1 = load_image_to_torch<double>(program.get<std::string>("--image1"));
+    auto image2 = load_image_to_torch<double>(program.get<std::string>("--image2"));
 
     // std::println("Image1: {}", image1);
     // std::println("Image2: {}", image2);
@@ -33,10 +33,10 @@ int main(int argc, char* argv[])
     std::println("Error: {}", error);
     std::println("Diff phase: {}", diff_phase);
 
-    auto shape1 = image1.shape();
-    auto shape2 = image2.shape();
-    cv::Mat mat1(shape1[0], shape1[1], CV_64F, const_cast<double*>(image1.data()));
-    cv::Mat mat2(shape2[0], shape2[1], CV_64F, const_cast<double*>(image2.data()));
+    auto shape1 = image1.sizes();
+    auto shape2 = image2.sizes();
+    auto mat1 = torch_tensor_to_cv_image<double>(image1);
+    auto mat2 = torch_tensor_to_cv_image<double>(image2);
     auto shift_cv = cv::phaseCorrelate(mat1, mat2); // x, y
     std::println("OpenCV Shift: ({}, {})", shift_cv.y, shift_cv.x);
 
