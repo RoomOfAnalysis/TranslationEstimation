@@ -31,6 +31,7 @@ find_path(XTENSOR_FFTW_INCLUDE_DIRS "xtensor-fftw/basic.hpp")
 find_package(OpenMP REQUIRED)
 find_package(Protobuf CONFIG REQUIRED)
 find_package(Torch CONFIG REQUIRED)
+find_package(TIFF REQUIRED)
 
 function(addTest name)
     set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
@@ -67,6 +68,7 @@ function(addTorchTest name)
         PRIVATE ${OpenCV_LIBS}
         PRIVATE OpenMP::OpenMP_CXX
         PRIVATE argparse::argparse
+        PUBLIC TIFF::TIFF
     )
     if(MSVC)
         target_compile_options(${name} PRIVATE /utf-8 /EHsc /MP /bigobj)
@@ -83,3 +85,5 @@ addTorchTest(chi2_shift_torch_test)
 addTorchTest(phase_cross_correlation_torch_test)
 addTorchTest(seam_find_test)
 addTorchTest(laplacian_blend_test)
+addTorchTest(distance_weighted_blend_test)
+addTorchTest(ometiff_writer_test)
